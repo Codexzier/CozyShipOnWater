@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Cozy Ship on Water</title>
+  <meta name="description" content="Wassersimulation mit Perlin-Noise-Wellen und einem Schiff, das durch das Wasser pflügt.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%E2%9B%B5%3C/text%3E%3C/svg%3E">
+  <link rel="stylesheet" href="css/style.css">
+  <script type="importmap">
+    { "imports": { "three": "./vendor/three/three.module.js", "three/addons/": "./vendor/three/examples/jsm/" } }
+  </script>
+</head>
+<body>
+  <canvas id="scene"></canvas>
+
+  <div id="loader">
+    <div class="loader-box">
+      <div class="loader-ship">⛵</div>
+      <div id="loaderText">Lade Wasser und Schiffe …</div>
+    </div>
+  </div>
+
+  <button id="showPanel" class="fab" hidden aria-label="Einstellungen einblenden">⚙ Einstellungen</button>
+
+  <aside id="panel" aria-label="Einstellungen">
+    <header>
+      <h1>Cozy Ship on Water</h1>
+      <button id="hidePanel" class="ghost" aria-label="Einstellungen ausblenden">✕ Ausblenden</button>
+    </header>
+
+    <section>
+      <h2>Wasser</h2>
+      <label class="row">
+        <span>Wellen-Amplitude</span><output id="ampOut"></output>
+        <input id="amp" type="range" min="0" max="2.5" step="0.01" value="0.25">
+      </label>
+      <label class="row inline">
+        <span>Farbe des Wassers</span>
+        <input id="color" type="color" value="#1e6f9f">
+      </label>
+      <label class="row">
+        <span>Brechungsindex</span><output id="iorOut"></output>
+        <input id="ior" type="range" min="1" max="2" step="0.01" value="1.33">
+      </label>
+    </section>
+
+    <section>
+      <h2>Schiff</h2>
+      <label class="row">
+        <span>Schiffstyp</span>
+        <select id="ship"></select>
+      </label>
+      <label class="row">
+        <span>Geschwindigkeit</span><output id="speedOut"></output>
+        <input id="speed" type="range" min="0" max="14" step="0.1" value="4">
+      </label>
+      <label class="check"><input id="wake" type="checkbox" checked> Kielwasser &amp; Schaum</label>
+    </section>
+
+    <section>
+      <h2>Tageszeit</h2>
+      <label class="row">
+        <span>Uhrzeit</span><output id="timeOut"></output>
+        <input id="time" type="range" min="0" max="24" step="0.05" value="11">
+      </label>
+      <label class="check"><input id="cycle" type="checkbox"> Tag &amp; Nacht laufen lassen</label>
+    </section>
+
+    <section>
+      <h2>Wetter</h2>
+      <div class="seg" id="weather">
+        <button data-w="clear" class="on">☀ Klar</button>
+        <button data-w="haze">🌫 Dunst</button>
+        <button data-w="rain">🌧 Regen</button>
+        <button data-w="storm">⛈ Sturm</button>
+      </div>
+      <label class="row">
+        <span>Nebel</span><output id="fogOut"></output>
+        <input id="fog" type="range" min="0" max="1" step="0.01" value="0">
+      </label>
+      <label class="row">
+        <span>Regen</span><output id="rainOut"></output>
+        <input id="rain" type="range" min="0" max="1" step="0.01" value="0">
+      </label>
+    </section>
+
+    <section>
+      <h2>Musik &amp; Kamera</h2>
+      <div class="btns">
+        <button id="music" class="primary">♪ Musik an</button>
+        <button id="photo">📷 Foto speichern</button>
+        <button id="resetCam">⟲ Ansicht zurücksetzen</button>
+      </div>
+      <label class="row">
+        <span>Lautstärke</span><output id="volOut"></output>
+        <input id="vol" type="range" min="0" max="1" step="0.01" value="0.5">
+      </label>
+      <p class="hint">Maus ziehen: Ansicht drehen · Mausrad: Zoom · Touch: ziehen &amp; zwicken</p>
+    </section>
+
+    <footer>
+      Modelle: <a href="https://kenney.nl" target="_blank" rel="noopener">Kenney Watercraft Kit</a> (CC0) ·
+      Musik: „Lofi Chillout Clockpunk“ · three.js
+    </footer>
+  </aside>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
