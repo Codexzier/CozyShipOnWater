@@ -3,8 +3,10 @@
 // Wasseroberfläche) sind absichtlich identisch aufgebaut, damit beide dieselben
 // Wellen "sehen".
 
+// Aktuelle Wellenlänge (m) -> Grundfrequenz. Wird von der UI gesetzt.
+export const waveState = { freq: 1 / 11 };
+
 export const WAVE = {
-  freq: 0.09,       // Grundfrequenz der Wellen (1/m)  -> größte Welle ca. 11 m
   octaves: 5,
   lacunarity: 2.03,
   gain: 0.5,
@@ -59,16 +61,28 @@ export function fbm(x, y, z) {
 }
 
 /**
- * Höhe der "freien" Wasseroberfläche (ohne Kielwasser) an der Stelle (x, z)
- * im Schiffskoordinatensystem. `travel` ist die vom Schiff zurückgelegte
- * Strecke: das Schiff steht im Ursprung, die Welt (Wellenmuster) läuft vorbei.
+ * Wellenfeld in Noise-Einheiten. Drei Mechanismen sorgen dafür, dass das Meer
+ * auch über lange Zeit nicht gleichförmig wirkt:
+ *  - Domain-Warping: das Muster wird mit einem langsamen Noise verzerrt
+ *    (lokal wechselnde Wellenlänge/Richtung),
+ *  - Modulation: eine großflächige Noise-Maske lässt Zonen ruhiger und rauer werden,
+ *  - Drift: Windrichtung und Zeit verschieben das Muster.
  */
-export function waveHeight(x, z, time, travel, amp) {
-  return amp * fbm(
-    x * WAVE.freq + time * WAVE.driftX,
-    (z - travel) * WAVE.freq + time * WAVE.driftZ,
-    time * WAVE.timeScale,
-  );
+function field(x, y, t) {
+  const px = x + t * WAVE.driftX, py = y + t * WAVE.driftZ;
+  const wx = perlin(px * 0.4 + 11.3, py * 0.4 + 3.7, t * 0.03);
+  const wy = perlin(px * 0.4 - 5.1, py * 0.4 + 19.2, t * 0.03 + 4.0);
+  const mask = 0.5 + 0.5 * perlin(px * 0.15 + 40.0, py * 0.15 + 7.0, t * 0.02);
+  return (0.3 + 1.4 * mask) * fbm(px + 1.1 * wx, py + 1.1 * wy, t * WAVE.timeScale);
+}
+
+/**
+ * Höhe der "freien" Wasseroberfläche (ohne Kielwasser) an der Stelle (x, z)
+ * im Schiffskoordinatensystem. `travelN` ist die zurückgelegte Strecke in
+ * Noise-Einheiten: das Schiff steht im Ursprung, die Welt läuft vorbei.
+ */
+export function waveHeight(x, z, time, travelN, amp) {
+  return amp * field(x * waveState.freq, z * waveState.freq - travelN, time);
 }
 
 const f = (n) => (Number.isInteger(n) ? n.toFixed(1) : String(n));
@@ -111,10 +125,13 @@ float fbm(vec3 p) {
   }
   return s / n;
 }
-float baseHeight(vec2 xz, float t, float travel, float amp) {
-  return amp * fbm(vec3(
-    xz.x * ${f(WAVE.freq)} + t * ${f(WAVE.driftX)},
-    (xz.y - travel) * ${f(WAVE.freq)} + t * ${f(WAVE.driftZ)},
-    t * ${f(WAVE.timeScale)}));
+uniform float uWaveFreq;
+float baseHeight(vec2 xz, float t, float travelN, float amp) {
+  float px = xz.x * uWaveFreq + t * ${f(WAVE.driftX)};
+  float py = xz.y * uWaveFreq - travelN + t * ${f(WAVE.driftZ)};
+  float wx = perlin(vec3(px * 0.4 + 11.3, py * 0.4 + 3.7, t * 0.03));
+  float wy = perlin(vec3(px * 0.4 - 5.1, py * 0.4 + 19.2, t * 0.03 + 4.0));
+  float mask = 0.5 + 0.5 * perlin(vec3(px * 0.15 + 40.0, py * 0.15 + 7.0, t * 0.02));
+  return amp * (0.3 + 1.4 * mask) * fbm(vec3(px + 1.1 * wx, py + 1.1 * wy, t * ${f(WAVE.timeScale)}));
 }
 `;

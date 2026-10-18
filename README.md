@@ -24,7 +24,7 @@ python3 -m http.server 8000   # dann http://localhost:8000
 
 | Bereich | Regler |
 | --- | --- |
-| Wasser | Wellen-Amplitude (Standard: ruhig), Farbe, Brechungsindex |
+| Wasser | Wellen-Amplitude (Standard: ruhig), Wellenlänge, Farbe, Brechungsindex |
 | Schiff | Schiffstyp (boat-fishing-small ⟵ Standard, boat-sail-a, boat-speed-b, ship-cargo-a, ship-large, ship-ocean-liner), Geschwindigkeit, Kielwasser an/aus |
 
 ### Zusatzfunktionen
@@ -39,10 +39,12 @@ python3 -m http.server 8000   # dann http://localhost:8000
 ## Technik
 
 * [three.js](https://threejs.org) r170 (lokal in `vendor/`, kein CDN nötig).
-* Wellen: 5-Oktaven-fBm aus 3D-Perlin-Noise (dritte Dimension = Zeit). Die Höhe wird im Vertex-Shader
+* Wellen: 5-Oktaven-fBm aus 3D-Perlin-Noise (dritte Dimension = Zeit), per Domain-Warping verzerrt und von einer
+  großflächigen Noise-Maske moduliert, damit das Meer auch auf lange Sicht ungleichmäßig bleibt. Die Höhe wird im Vertex-Shader
   berechnet; dieselbe Funktion existiert in JS (`js/noise.js`), damit Schiff und Bojen
   physikalisch passend auf den Wellen schaukeln.
-* Das Schiff steht im Ursprung, die Welt läuft vorbei – so ist das Kielwasser im Schiffssystem stationär.
+* Das Schiff steht im Ursprung, die Welt läuft vorbei. Die Wellenform des Kielwassers ist im Schiffssystem stationär;
+  Schaum, Kräuselung und Meeresboden werden dagegen im Wasser-System berechnet und strömen sichtbar nach hinten.
 * Wasser-Shading: Fresnel aus dem **Brechungsindex** (Schlick), Spiegelung des prozeduralen Himmels,
   Brechung (Snellius) bis zu einem Meeresboden mit Kaustiken.
 

@@ -73,9 +73,9 @@ export class Ship {
     this.spawn = 0;                          // sanftes Einblenden (Skalierung)
   }
 
-  update(dt, time, travel, amp, speed, night) {
+  update(dt, time, travelN, amp, speed, night) {
     const { L, B } = this.def;
-    const h = (x, z) => waveHeight(x, z, time, travel, amp);
+    const h = (x, z) => waveHeight(x, z, time, travelN, amp);
     const hb = h(0, -0.36 * L), hs = h(0, 0.36 * L);
     const hp = h(-0.4 * B, 0), hst = h(0.4 * B, 0);
     const hc = h(0, 0);
@@ -129,7 +129,7 @@ export class Buoys {
 
   setOffset(shipBeam) { this.offset = shipBeam / 2 + 5.5; }
 
-  update(time, travel, amp, night) {
+  update(time, travel, travelN, amp, night) {
     const zFar = -this.span + 40, zNear = 60;
     for (const b of this.items) {
       // Position im Schiffssystem; "wrap" lässt die Boje hinten verschwinden und vorn neu auftauchen
@@ -137,9 +137,9 @@ export class Buoys {
       z = ((z - zNear) % this.span + this.span) % this.span + zNear - this.span;
       const x = b.side * (this.offset + b.jitter);
       const e = 0.7;
-      const h0 = waveHeight(x, z, time, travel, amp);
-      const hx = waveHeight(x + e, z, time, travel, amp);
-      const hz = waveHeight(x, z + e, time, travel, amp);
+      const h0 = waveHeight(x, z, time, travelN, amp);
+      const hx = waveHeight(x + e, z, time, travelN, amp);
+      const hz = waveHeight(x, z + e, time, travelN, amp);
       b.root.position.set(x, h0 - 0.1, z);
       b.root.rotation.set(Math.atan2(hz - h0, e) * -0.9 + Math.sin(time * 0.9 + b.phase) * 0.03 * (0.3 + amp),
                           0, Math.atan2(hx - h0, e) * 0.9 + Math.cos(time * 0.8 + b.phase) * 0.03 * (0.3 + amp));

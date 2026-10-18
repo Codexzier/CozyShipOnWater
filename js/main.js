@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { waveState } from './noise.js';
 import { skyUniforms, updateSky, createSky } from './sky.js';
 import { waterUniforms, createWater } from './water.js';
 import { SHIPS, loadAssets, Ship, Buoys } from './ships.js';
@@ -16,12 +17,12 @@ const WEATHER = {
   storm: { amp: 1.5, fog: 0.3, rain: 1.0, overcast: 1.0, storm: 1 },
 };
 const settings = {
-  amp: 0.25, color: '#1e6f9f', ior: 1.33, speed: 4, wake: true,
+  amp: 0.25, waveLen: 11, color: '#1e6f9f', ior: 1.33, speed: 4, wake: true,
   hours: 11, cycle: false, fog: 0, rain: 0, weather: 'clear', ship: 'boat-fishing-small',
   volume: 0.5,
 };
 // aktuelle, weich nachgeführte Werte
-const cur = { amp: settings.amp, ior: settings.ior, speed: 0, fog: 0, rain: 0, overcast: 0, storm: 0, hours: settings.hours, wake: 1 };
+const cur = { amp: settings.amp, waveLen: settings.waveLen, ior: settings.ior, speed: 0, fog: 0, rain: 0, overcast: 0, storm: 0, hours: settings.hours, wake: 1 };
 const tmpColor = new THREE.Color();
 const waterColor = new THREE.Color(settings.color);
 
@@ -121,6 +122,7 @@ const fmtHours = (h) => {
 };
 
 bindRange('amp', 'amp', (v) => `${v.toFixed(2)} m`);
+bindRange('waveLen', 'waveLen', (v) => `${v.toFixed(0)} m`);
 bindRange('ior', 'ior', (v) => v.toFixed(2));
 bindRange('speed', 'speed', (v) => `${v.toFixed(1)} m/s`);
 bindRange('time', 'hours', fmtHours);
@@ -197,7 +199,7 @@ if (window.innerWidth <= 720) setPanel(false);   // am Handy zuerst die Szene ze
 
 // ---------- Hauptschleife ----------
 const clock = new THREE.Clock();
-let simTime = 0, travel = 0;
+let simTime = 0, travel = 0, travelN = 0;
 const tmpV = new THREE.Vector3();
 
 function frame() {
@@ -209,6 +211,7 @@ function frame() {
   const w = WEATHER[settings.weather];
   const overcastT = Math.max(w.overcast, settings.rain * 0.85, settings.fog * 0.5);
   cur.amp += (settings.amp - cur.amp) * k;
+  cur.waveLen += (settings.waveLen - cur.waveLen) * k;
   cur.ior += (settings.ior - cur.ior) * k;
   cur.speed += (settings.speed - cur.speed) * (1 - Math.exp(-dt * 1.5));
   cur.fog += (settings.fog - cur.fog) * (1 - Math.exp(-dt * 1.2));
@@ -225,7 +228,9 @@ function frame() {
   }
   cur.hours = settings.hours;
 
+  waveState.freq = 1 / cur.waveLen;
   travel += cur.speed * dt;
+  travelN += cur.speed * dt * waveState.freq;
   const { day } = updateSky(cur.hours, cur.overcast, cur.storm);
   skyUniforms.uTime.value = simTime;
   skyUniforms.uFogDensity.value = 0.0032 + cur.fog * 0.03;
@@ -235,6 +240,8 @@ function frame() {
   const speedF = THREE.MathUtils.smoothstep(cur.speed, 0, 1.2) * (0.25 + 0.75 * Math.min(cur.speed / 8, 1.3));
   waterUniforms.uAmp.value = cur.amp;
   waterUniforms.uTravel.value = travel;
+  waterUniforms.uTravelN.value = travelN;
+  waterUniforms.uWaveFreq.value = waveState.freq;
   waterUniforms.uWaterColor.value.copy(waterColor);
   waterUniforms.uIOR.value = cur.ior;
   waterUniforms.uLight.value = (0.07 + 0.93 * day) * (1 - 0.4 * cur.overcast);
@@ -258,8 +265,8 @@ function frame() {
   scene.fog.density = skyUniforms.uFogDensity.value;
 
   // Schiff & Bojen
-  ship.update(dt, simTime, travel, cur.amp, cur.speed, night);
-  buoys.update(simTime, travel, cur.amp, night);
+  ship.update(dt, simTime, travelN, cur.amp, cur.speed, night);
+  buoys.update(simTime, travel, travelN, cur.amp, night);
 
   // Kamera
   if (zoomAnim.left > 0) {

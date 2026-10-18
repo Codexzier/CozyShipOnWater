@@ -4,7 +4,9 @@ import { GLSL_SKY, skyUniforms } from './sky.js';
 
 export const waterUniforms = {
   uAmp: { value: 0.25 },
-  uTravel: { value: 0 },
+  uTravel: { value: 0 },      // zurückgelegte Strecke (m) - für Schaum, Kräuselung, Meeresboden
+  uTravelN: { value: 0 },     // dasselbe in Noise-Einheiten - für die Wellenhöhe
+  uWaveFreq: { value: 1 / 11 },
   uWaterColor: { value: new THREE.Color('#1e6f9f') },
   uIOR: { value: 1.33 },
   uDepth: { value: 10 },
@@ -95,13 +97,16 @@ export function createWater() {
     vertexShader: /* glsl */ `
       ${GLSL_NOISE}
       ${WAKE}
-      uniform float uTime, uAmp, uTravel;
+      uniform float uTime, uAmp, uTravelN, uTravel;
       varying vec3 vWorld;
       varying vec3 vNormal;
       varying float vH;
 
       float surface(vec2 p) {
-        return baseHeight(p, uTime, uTravel, uAmp) + wakeHeight(p);
+        // Das Kielwasser wird vom Wasser mitgenommen: seine Stärke schwankt mit
+        // einem Noise, der mit dem Wasser nach hinten wandert.
+        float wm = 0.8 + 0.4 * perlin(vec3(p.x * 0.5, (p.y - uTravel) * 0.5, uTime * 0.3));
+        return baseHeight(p, uTime, uTravelN, uAmp) + wakeHeight(p) * wm;
       }
 
       void main() {
@@ -120,7 +125,7 @@ export function createWater() {
       ${GLSL_NOISE}
       ${GLSL_SKY}
       ${WAKE}
-      uniform float uAmp, uTravel, uIOR, uDepth, uLight, uRain, uStorm, uWakeFoam;
+      uniform float uAmp, uTravel, uTravelN, uIOR, uDepth, uLight, uRain, uStorm, uWakeFoam;
       uniform vec3 uWaterColor;
       uniform float uFogDensity;
       varying vec3 vWorld;
@@ -133,7 +138,8 @@ export function createWater() {
 
         // feine Kräuselung (Perlin) - schwächt sich mit der Entfernung ab, Regen verstärkt sie
         float detail = (0.035 + 0.05 * min(uAmp, 1.5) + 0.07 * uRain) / (1.0 + dist * 0.012);
-        vec2 q = vWorld.xz;
+        // Koordinaten im Wasser-System: das Wasser strömt mit der Schiffsgeschwindigkeit nach hinten
+        vec2 q = vec2(vWorld.x, vWorld.z - uTravel);
         N = normalize(N + detail * vec3(perlin(vec3(q * 1.7, uTime * 0.5)),
                                         0.0,
                                         perlin(vec3(q * 1.7 + 31.7, uTime * 0.5 + 7.0))) * 2.0);
@@ -158,10 +164,11 @@ export function createWater() {
         vec3 T = refract(-V, N, 1.0 / uIOR);
         float tdist = (vWorld.y + uDepth) / max(-T.y, 0.05);
         vec3 hit = vWorld + T * tdist;
-        float sandN = perlin(vec3(hit.xz * 0.35, 3.0));
+        vec2 hw = vec2(hit.x, hit.z - uTravel);
+        float sandN = perlin(vec3(hw * 0.35, 3.0));
         vec3 sand = vec3(0.78, 0.68, 0.48) * (0.75 + 0.25 * sandN);
-        float c1 = 1.0 - abs(perlin(vec3(hit.xz * 0.75, uTime * 0.35)));
-        float c2 = 1.0 - abs(perlin(vec3(hit.xz * 1.1 + 9.0, uTime * 0.3 + 4.0)));
+        float c1 = 1.0 - abs(perlin(vec3(hw * 0.75, uTime * 0.35)));
+        float c2 = 1.0 - abs(perlin(vec3(hw * 1.1 + 9.0, uTime * 0.3 + 4.0)));
         float caustic = pow(c1 * c2, 7.0) * 3.0;
         vec3 floorCol = (sand + caustic * uSunColor * 0.6) * (uWaterColor * 1.4 + 0.15) * (0.4 + 0.6 * uDay);
         vec3 deep = uWaterColor * (0.55 + 0.45 * uDay);
@@ -177,7 +184,8 @@ export function createWater() {
         float L = uShipL, B = uShipB;
         float zb = -0.46 * L;
         float d = vWorld.z - zb;
-        float fn = perlin(vec3(q * 2.3, uTime * 0.6)) * 0.5 + perlin(vec3(q * 5.1 + 3.0, uTime * 0.9)) * 0.35 + 0.5;
+        // Schaum-Textur im Wasser-System, in Fahrtrichtung gestreckt -> Schlieren, die nach hinten wandern
+        float fn = perlin(vec3(q.x * 2.1, q.y * 1.2, uTime * 0.5)) * 0.5 + perlin(vec3(q.x * 4.7 + 3.0, q.y * 2.6, uTime * 0.8)) * 0.35 + 0.5;
         float foam = 0.0;
         if (uWakeAmp > 0.002) {
           float s = clamp(uWakeAmp * 5.0, 0.0, 1.0) * uWakeFoam;
